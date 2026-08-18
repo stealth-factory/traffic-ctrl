@@ -54,7 +54,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out released revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.release-please.outputs.release-sha }}
 
