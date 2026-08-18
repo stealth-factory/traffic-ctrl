@@ -144,7 +144,7 @@ struct Display {
         let width = max(40, terminalColumns() ?? 100)
         let chart = chartLines(history, width: width, height: chartHeight(rows: rows))
         var lines: [String] = [
-            "Traffic Ctrl  process details  \(duration(elapsed))",
+            "Traffic Ctrl v\(TrafficCtrlVersion.current)  process details  \(duration(elapsed))",
             "\(item.id.name)  PID \(item.id.pid)",
             String(repeating: "─", count: width),
             "Public Internet: \(bytes(item.total)) total   \(rate(item.totalRate)) now   ↓ \(rate(item.receiveRate))   ↑ \(rate(item.sendRate))",
@@ -234,7 +234,7 @@ struct Display {
     }
 
     private func header(elapsed: TimeInterval, sort: SortMode) -> [String] {
-        ["Traffic Ctrl  \(scope)  \(duration(elapsed))  sort: \(sort == .total ? "total data" : "live bandwidth")"]
+        ["Traffic Ctrl v\(TrafficCtrlVersion.current)  \(scope)  \(duration(elapsed))  sort: \(sort == .total ? "total data" : "live bandwidth")"]
     }
 
     private func chartHeight(rows: Int?) -> Int {
