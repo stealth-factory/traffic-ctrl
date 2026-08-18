@@ -18,6 +18,16 @@ important traffic columns collapse automatically in narrow terminals.
 It uses macOS's built-in `nettop`; no kernel extension, packet capture, or
 always-on background service is required.
 
+## Project roadmap
+
+Traffic Ctrl is planned to evolve into a cross-platform Rust core and TUI with
+a Swift Network Extension backend on macOS and a Rust/eBPF backend on Linux.
+See the version-controlled [project roadmap](docs/ROADMAP.md) for the staged
+network block/unblock and migration plan.
+
+Versioning, changelog generation, and executable publication are automated as
+documented in the [release guide](docs/RELEASING.md).
+
 ## Build and run
 
 Requires macOS 13 or later and the Xcode Command Line Tools.
@@ -52,12 +62,13 @@ traffic-ctrl [options]
       --sort MODE         Initial sort: total or live (default: total)
       --plain             Do not clear the terminal between updates
   -h, --help              Show this help
+  -V, --version           Show the version
 ```
 
 Examples:
 
 ```sh
-# Show the 20 busiest processes, refreshed every second
+# Show the busiest processes and auto-fit the terminal
 traffic-ctrl
 
 # Show the top 10 public-Internet users

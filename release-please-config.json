@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "component": "traffic-ctrl",
+      "package-name": "traffic-ctrl",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        "Sources/TrafficCtrl/Version.swift"
+      ]
+    }
+  }
+}

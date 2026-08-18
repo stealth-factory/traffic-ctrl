@@ -72,6 +72,9 @@ struct Options {
             case "-h", "--help":
                 print(help)
                 exit(0)
+            case "-V", "--version":
+                print("traffic-ctrl \(TrafficCtrlVersion.current)")
+                exit(0)
             default:
                 throw CLIError.usage("Unknown option: \(arguments[index])")
             }
@@ -92,6 +95,7 @@ struct Options {
           --sort MODE         Initial sort: total or live (default: total)
           --plain             Do not clear the terminal between updates
       -h, --help              Show this help
+      -V, --version           Show the version
 
     Columns:
       TOTAL  Download + upload since this invocation started
@@ -275,7 +279,8 @@ do {
             let result = ProcessController.resume(id)
             pausedProcesses.removeValue(forKey: id)
             if detailID == id || (detailID == nil && selectedID == id) {
-                detailNotice = result ?? "Automatically unpaused after 30 seconds"
+                detailNotice = result
+                    ?? "Automatically unpaused \(id.name) (PID \(id.pid)) after 30 seconds"
             }
             needsRender = true
         }
@@ -283,7 +288,7 @@ do {
             pendingPause = nil
             if detailID == pauseConfirmation.id
                 || (detailID == nil && selectedID == pauseConfirmation.id) {
-                detailNotice = "Pause confirmation expired"
+                detailNotice = "Pause cancelled for \(pauseConfirmation.id.name) (PID \(pauseConfirmation.id.pid)): confirmation expired"
             }
             needsRender = true
         }
@@ -446,7 +451,7 @@ do {
                 case .pause:
                     guard let id = detailID ?? selectedID else { continue }
                     if pausedProcesses[id] != nil {
-                        detailNotice = "Process is already paused; press [u] to unpause"
+                        detailNotice = "\(id.name) (PID \(id.pid)) is already paused; press [u] to unpause it"
                         pendingPause = nil
                     } else if pendingPause?.id == id,
                               let expiry = pendingPause?.expires,
@@ -454,26 +459,26 @@ do {
                         let result = ProcessController.pause(id)
                         if result == nil {
                             pausedProcesses[id] = now.addingTimeInterval(30)
-                            detailNotice = "PAUSED: all process activity stopped; auto-unpause in 30 seconds"
+                            detailNotice = "PAUSED \(id.name) (PID \(id.pid)): all activity for this process stopped; auto-unpause in 30s"
                         } else {
                             detailNotice = result
                         }
                         pendingPause = nil
                     } else {
                         pendingPause = (id, now.addingTimeInterval(4))
-                        detailNotice = "Press [p] again within 4s to pause ALL activity for up to 30s"
+                        detailNotice = "Pause \(id.name) (PID \(id.pid))? [p] again within 4s. Stops only this process's activity for up to 30s."
                     }
                 case .unpause:
                     guard let id = detailID ?? selectedID else { continue }
                     guard pausedProcesses[id] != nil else {
-                        detailNotice = "Process is not paused"
+                        detailNotice = "\(id.name) (PID \(id.pid)) is not paused"
                         pendingPause = nil
                         continue
                     }
                     let result = ProcessController.resume(id)
                     if result == nil {
                         pausedProcesses.removeValue(forKey: id)
-                        detailNotice = "Process unpaused"
+                        detailNotice = "Unpaused \(id.name) (PID \(id.pid))"
                     } else {
                         detailNotice = result
                     }

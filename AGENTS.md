@@ -27,10 +27,13 @@
 - `Return` or `→` opens process details.
 - `Esc` or `←` returns to the main process list.
 - `s` switches between total-data and live-bandwidth sorting.
-- In details, `e` focuses endpoints and `f` focuses open files.
+- In details, `Tab` cycles through endpoints, network connections, and open
+  files; `e` and `f` remain direct endpoint and file shortcuts.
 - The endpoint focus shows a compact RX-above-zero/TX-below-zero chart directly
   beneath the selected endpoint. Endpoint histories reset with all other stats.
-- `p` requires confirmation before pausing a process; `u` resumes it.
+- `p` requires confirmation before pausing the selected process in either
+  view; `u` resumes it. Pause notices must identify the process by name and PID
+  and make clear that only that process is affected.
 - The footer must remain visible and describe the controls available in the
   current view.
 
@@ -47,6 +50,8 @@ Verify both entry points:
 ```sh
 .build/release/traffic-ctrl --help
 .build/release/trctrl --help
+.build/release/traffic-ctrl --version
+.build/release/trctrl --version
 ```
 
 After changing interaction or rendering code, also run the release binary in a
@@ -58,3 +63,15 @@ After every implemented application update, rebuild the release binary and
 restart the preview in the right-hand Herdr pane. Verify that the pane's
 foreground process is the new `traffic-ctrl` binary and inspect the visible
 screen for the updated behaviour before reporting completion.
+
+## Versions and releases
+
+- Use Conventional Commit subjects for changes intended to drive releases.
+- Release Please owns `.release-please-manifest.json`, `CHANGELOG.md`, release
+  tags, and updates to `Sources/TrafficCtrl/Version.swift`.
+- Do not edit generated version or changelog entries manually except when
+  repairing release automation.
+- CI must build both ARM64 and Intel macOS executables. A release is complete
+  only after both archives and `SHA256SUMS` are attached to the GitHub Release.
+- Follow `docs/RELEASING.md` for repository setup, release operation, and
+  recovery.

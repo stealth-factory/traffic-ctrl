@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Describe package
+        run: swift package describe
+
+      - name: Build release executables
+        run: swift build -c release
+
+      - name: Verify commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          .build/release/traffic-ctrl --help >/dev/null
+          .build/release/trctrl --help >/dev/null
+          .build/release/traffic-ctrl --version | grep -Eq '^traffic-ctrl [0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$'
+          test "$(.build/release/traffic-ctrl --version)" = "$(.build/release/trctrl --version)"
