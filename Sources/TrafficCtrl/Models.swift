@@ -46,5 +46,6 @@ struct EndpointTraffic: Sendable {
 
 enum DetailFocus {
     case endpoints
+    case connections
     case files
 }

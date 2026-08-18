@@ -30,7 +30,7 @@ private final class TerminalInput {
 
 struct Options {
     var interval: TimeInterval = 1
-    var limit = 20
+    var limit: Int?
     var publicOnly = true
     var plain = false
     var sort: SortMode = .total
@@ -86,7 +86,7 @@ struct Options {
     Rank macOS processes by network traffic measured since Traffic Ctrl started.
 
       -i, --interval SECONDS  Sampling interval (default: 1, minimum: 0.2)
-      -n, --limit COUNT       Number of processes to show (default: 20)
+      -n, --limit COUNT       Maximum processes to show (default: auto-fit terminal)
           --external          Public Internet only (default; compatibility alias)
           --all-external      Include LAN, multicast and other non-loopback traffic
           --sort MODE         Initial sort: total or live (default: total)
@@ -100,8 +100,8 @@ struct Options {
       UP     Current send rate
 
     Use Up/Down or j/k to select a process and Return or Right Arrow to inspect it. In the
-    detail view, e selects remote endpoints, f selects open files, and p/u
-    pauses or resumes the process. Press Left Arrow or Esc to return, s to change sorting,
+    detail view, Tab switches between endpoints, connections and open files, and p/u
+    pauses or resumes the selected process. Press Left Arrow or Esc to return, s to change sorting,
     r to reset statistics, or q to quit.
     """
 }
@@ -122,6 +122,7 @@ private enum InputAction {
     case details
     case back
     case toggleSort
+    case toggleDetailFocus
     case focusEndpoints
     case focusFiles
     case copy
@@ -157,6 +158,7 @@ private func parseInput(_ bytes: inout [UInt8], flushStandaloneEscape: Bool) -> 
             case "k", "K": actions.append(.up)
             case "j", "J": actions.append(.down)
             case "\r", "\n": actions.append(.details)
+            case "\t": actions.append(.toggleDetailFocus)
             case "\u{7F}": actions.append(.back)
             case "s", "S", "t", "T": actions.append(.toggleSort)
             case "e", "E": actions.append(.focusEndpoints)
@@ -199,6 +201,7 @@ do {
     var detailID: ProcessID?
     var selectedFilePath: String?
     var selectedEndpointAddress: String?
+    var selectedConnection: String?
     var detailFocus = DetailFocus.endpoints
     var detailFiles: [OpenFile] = []
     var detailNotice: String?
@@ -271,14 +274,15 @@ do {
         for id in automaticallyResumed {
             let result = ProcessController.resume(id)
             pausedProcesses.removeValue(forKey: id)
-            if detailID == id {
-                detailNotice = result ?? "Automatically resumed after 30 seconds"
+            if detailID == id || (detailID == nil && selectedID == id) {
+                detailNotice = result ?? "Automatically unpaused after 30 seconds"
             }
             needsRender = true
         }
         if let pauseConfirmation = pendingPause, now >= pauseConfirmation.expires {
             pendingPause = nil
-            if detailID == pauseConfirmation.id {
+            if detailID == pauseConfirmation.id
+                || (detailID == nil && selectedID == pauseConfirmation.id) {
                 detailNotice = "Pause confirmation expired"
             }
             needsRender = true
@@ -322,14 +326,22 @@ do {
                         ? max(0, current - 1)
                         : min(ranked.count - 1, current + 1)
                     selectedID = ranked[next].id
+                    detailNotice = nil
                 case .up where detailID != nil:
-                    if detailFocus == .endpoints {
+                    switch detailFocus {
+                    case .endpoints:
                         let current = selectedEndpointAddress.flatMap { address in
                             rankedEndpoints.firstIndex { $0.address == address }
                         } ?? 0
                         selectedEndpointAddress = rankedEndpoints.isEmpty
                             ? nil : rankedEndpoints[max(0, current - 1)].address
-                    } else {
+                    case .connections:
+                        let current = selectedConnection.flatMap { connection in
+                            details.connections.firstIndex(of: connection)
+                        } ?? 0
+                        selectedConnection = details.connections.isEmpty
+                            ? nil : details.connections[max(0, current - 1)]
+                    case .files:
                         let current = selectedFilePath.flatMap { path in
                             detailFiles.firstIndex { $0.path == path }
                         } ?? 0
@@ -338,13 +350,20 @@ do {
                     }
                     detailNotice = nil
                 case .down where detailID != nil:
-                    if detailFocus == .endpoints {
+                    switch detailFocus {
+                    case .endpoints:
                         let current = selectedEndpointAddress.flatMap { address in
                             rankedEndpoints.firstIndex { $0.address == address }
                         } ?? 0
                         selectedEndpointAddress = rankedEndpoints.isEmpty
                             ? nil : rankedEndpoints[min(rankedEndpoints.count - 1, current + 1)].address
-                    } else {
+                    case .connections:
+                        let current = selectedConnection.flatMap { connection in
+                            details.connections.firstIndex(of: connection)
+                        } ?? 0
+                        selectedConnection = details.connections.isEmpty
+                            ? nil : details.connections[min(details.connections.count - 1, current + 1)]
+                    case .files:
                         let current = selectedFilePath.flatMap { path in
                             detailFiles.firstIndex { $0.path == path }
                         } ?? 0
@@ -356,6 +375,7 @@ do {
                     detailID = selectedID
                     selectedFilePath = nil
                     selectedEndpointAddress = sortedEndpoints(for: selectedID, in: monitor).first?.address
+                    selectedConnection = nil
                     detailFocus = .endpoints
                     detailFiles = []
                     details = ProcessDetails(
@@ -368,12 +388,20 @@ do {
                     detailID = nil
                     selectedFilePath = nil
                     selectedEndpointAddress = nil
+                    selectedConnection = nil
                     detailFiles = []
                     detailsRevision = -1
                     hostnameRevision = -1
                     detailNotice = nil
                 case .toggleSort:
                     sort = sort == .total ? .live : .total
+                case .toggleDetailFocus where detailID != nil:
+                    switch detailFocus {
+                    case .endpoints: detailFocus = .connections
+                    case .connections: detailFocus = .files
+                    case .files: detailFocus = .endpoints
+                    }
+                    detailNotice = nil
                 case .focusEndpoints where detailID != nil:
                     detailFocus = .endpoints
                 case .focusFiles where detailID != nil:
@@ -390,6 +418,7 @@ do {
                     detailID = nil
                     selectedFilePath = nil
                     selectedEndpointAddress = nil
+                    selectedConnection = nil
                     detailFocus = .endpoints
                     detailFiles = []
                     details = ProcessDetails(
@@ -399,13 +428,23 @@ do {
                     hostnameRevision = -1
                     detailNotice = nil
                 case .copy:
-                    if let path = selectedFilePath {
-                        detailNotice = ProcessInspector.copyToClipboard(path)
-                            ? "Copied: \(path)"
-                            : "Could not copy the selected path"
+                    let copyValue: String?
+                    switch detailFocus {
+                    case .endpoints:
+                        copyValue = selectedEndpointAddress.map {
+                            hostnameResolver.snapshot().names[$0] ?? $0
+                        }
+                    case .connections:
+                        copyValue = selectedConnection
+                    case .files:
+                        copyValue = selectedFilePath
                     }
+                    guard let copyValue else { continue }
+                    detailNotice = ProcessInspector.copyToClipboard(copyValue)
+                        ? "Copied: \(copyValue)"
+                        : "Could not copy the selected item"
                 case .pause:
-                    guard let id = detailID else { continue }
+                    guard let id = detailID ?? selectedID else { continue }
                     if pausedProcesses[id] != nil {
                         detailNotice = "Process is already paused; press [u] to unpause"
                         pendingPause = nil
@@ -425,7 +464,7 @@ do {
                         detailNotice = "Press [p] again within 4s to pause ALL activity for up to 30s"
                     }
                 case .unpause:
-                    guard let id = detailID else { continue }
+                    guard let id = detailID ?? selectedID else { continue }
                     guard pausedProcesses[id] != nil else {
                         detailNotice = "Process is not paused"
                         pendingPause = nil
@@ -463,6 +502,12 @@ do {
                 details = snapshot.details
                 detailsRevision = snapshot.revision
                 detailFiles = details.files
+                if let connection = selectedConnection,
+                   details.connections.contains(connection) == false {
+                    selectedConnection = details.connections.first
+                } else if selectedConnection == nil {
+                    selectedConnection = details.connections.first
+                }
                 if let path = selectedFilePath,
                    detailFiles.contains(where: { $0.path == path }) == false {
                     selectedFilePath = detailFiles.first?.path
@@ -494,6 +539,9 @@ do {
                     selectedEndpointHistory: selectedEndpointAddress.flatMap { address in
                         monitor.endpointHistory[detailID]?[address]
                     } ?? [],
+                    selectedConnectionIndex: selectedConnection.flatMap {
+                        details.connections.firstIndex(of: $0)
+                    } ?? 0,
                     detailFocus: detailFocus,
                     history: monitor.processHistory[detailID] ?? [],
                     sampleInterval: options.interval,
@@ -513,7 +561,9 @@ do {
                     sampleInterval: options.interval,
                     elapsed: now.timeIntervalSince(statisticsStarted),
                     sort: sort,
-                    selected: selectedID
+                    selected: selectedID,
+                    selectedIsPaused: selectedID.map { pausedProcesses[$0] != nil } ?? false,
+                    notice: detailNotice
                 )
             }
         }

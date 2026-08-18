@@ -47,7 +47,7 @@ enum SortMode: String {
 }
 
 struct Display {
-    let limit: Int
+    let limit: Int?
     let plain: Bool
     let scope: String
     private let writer = FrameWriter()
@@ -77,12 +77,22 @@ struct Display {
         sampleInterval: TimeInterval,
         elapsed: TimeInterval,
         sort: SortMode,
-        selected: ProcessID?
+        selected: ProcessID?,
+        selectedIsPaused: Bool,
+        notice: String?
     ) {
         let rows = plain ? nil : terminalRows()
         let width = max(40, terminalColumns() ?? 100)
         let chart = chartLines(history, width: width, height: chartHeight(rows: rows))
-        let visibleLimit = rows.map { max(1, min(limit, $0 - chart.count - 7)) } ?? limit
+        let noticeRows = notice == nil ? 0 : 2
+        let availableRows = rows.map { max(1, $0 - chart.count - 7 - noticeRows) }
+        let visibleLimit: Int
+        if let availableRows {
+            visibleLimit = limit.map { min($0, availableRows) } ?? availableRows
+        } else {
+            // Keep redirected/plain output finite unless the caller sets a cap.
+            visibleLimit = limit ?? 20
+        }
         let selectedIndex = selected.flatMap { id in ranked.firstIndex { $0.id == id } } ?? 0
         let start = selectedIndex < visibleLimit ? 0 : selectedIndex - visibleLimit + 1
         let visible = ranked.dropFirst(start).prefix(visibleLimit)
@@ -102,10 +112,15 @@ struct Display {
         if ranked.isEmpty {
             lines.append("Waiting for public-Internet traffic…")
         }
+        if let notice {
+            lines.append("")
+            lines.append(truncate(notice, width: width))
+        }
+        let processControl = selectedIsPaused ? "[u]npause" : "[p]ause"
         finish(
             &lines,
             rows: rows,
-            footer: listFooter(width: width)
+            footer: listFooter(processControl: processControl, width: width)
         )
     }
 
@@ -116,6 +131,7 @@ struct Display {
         hostnames: [String: String],
         selectedEndpointIndex: Int,
         selectedEndpointHistory: [RateSample],
+        selectedConnectionIndex: Int,
         detailFocus: DetailFocus,
         history: [RateSample],
         sampleInterval: TimeInterval,
@@ -173,8 +189,16 @@ struct Display {
         if details.connections.isEmpty {
             lines.append("  No visible network sockets")
         } else {
-            for connection in details.connections.prefix(8) {
-                lines.append("  " + truncate(connection, width: width - 2))
+            let connectionLimit = rows.map { $0 >= 50 ? 8 : 4 } ?? 8
+            let selected = min(max(0, selectedConnectionIndex), details.connections.count - 1)
+            let start = selected < connectionLimit ? 0 : selected - connectionLimit + 1
+            for (offset, connection) in details.connections.dropFirst(start).prefix(connectionLimit).enumerated() {
+                let index = start + offset
+                let marker = detailFocus == .connections && index == selected ? "›" : " "
+                lines.append(marker + " " + truncate(connection, width: width - 2))
+            }
+            if details.connections.count > connectionLimit {
+                lines.append("  Connections \(start + 1)–\(min(details.connections.count, start + connectionLimit)) of \(details.connections.count)")
             }
         }
 
@@ -526,19 +550,24 @@ struct Display {
         }.joined(separator: " ")
     }
 
-    private func listFooter(width: Int) -> String {
+    private func listFooter(processControl: String, width: Int) -> String {
         if width >= 72 {
-            return "[↑/↓] select   [enter/→] details   [s]ort   [r]eset   [q]uit"
+            return "[↑/↓] select  [enter/→] details  \(processControl)  [s]ort  [r]eset  [q]uit"
         }
-        return "[j/k] select  [enter/→] details  [s]ort  [r]eset  [q]uit"
+        return "[j/k] select  [enter/→] details  \(processControl)  [r]eset  [q]uit"
     }
 
     private func detailFooter(processControl: String, focus: DetailFocus, width: Int) -> String {
         if width >= 88 {
-            let target = focus == .endpoints ? "endpoints" : "files"
-            return "[↑/↓] \(target)  [e]ndpoints [f]iles  [c]opy  \(processControl)  [esc/←] back  [s]ort [r]eset [q]uit"
+            let target: String
+            switch focus {
+            case .endpoints: target = "endpoints"
+            case .connections: target = "connections"
+            case .files: target = "files"
+            }
+            return "[↑/↓] \(target)  [tab] section  [c]opy  \(processControl)  [esc/←] back  [s]ort [r]eset [q]uit"
         }
-        return "[j/k]  [e]ndpoints [f]iles  [c]opy  \(processControl)  [esc/←]back  [r]eset [q]uit"
+        return "[j/k]  [tab] section  [c]opy  \(processControl)  [esc/←]back  [r]eset [q]uit"
     }
 
     private func pad(_ value: String, to width: Int, rightAligned: Bool = false) -> String {

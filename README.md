@@ -46,7 +46,7 @@ You may need `sudo` for the install command, depending on the ownership of
 traffic-ctrl [options]
 
   -i, --interval SECONDS  Sampling interval (default: 1, minimum: 0.2)
-  -n, --limit COUNT       Number of processes to show (default: 20)
+  -n, --limit COUNT       Maximum processes to show (default: auto-fit terminal)
       --external          Public Internet only (default; compatibility alias)
       --all-external      Include LAN, multicast and other non-loopback traffic
       --sort MODE         Initial sort: total or live (default: total)
@@ -72,10 +72,12 @@ While it is running, enter one of these controls:
 - The detail view ranks every observed remote endpoint by its since-launch
   traffic and shows its live download and upload rates. Press `e` to select and
   scroll endpoints; the highlighted endpoint expands to show its own compact
-  RX/TX history chart. Press `f` to select and scroll open files.
-- `c` copies the selected file's full path to the macOS clipboard.
-- `p` in the detail view asks for confirmation, then pauses the entire process
-  for up to 30 seconds; press `u` to unpause it early.
+  RX/TX history chart. Press `f` to select and scroll open files, or press `Tab`
+  to cycle through endpoints, current network connections, and open files.
+- `c` copies the active section's selected domain or IP address, network
+  connection, or full file path to the macOS clipboard.
+- `p` in either view asks for confirmation, then pauses the selected process for
+  up to 30 seconds; press `u` to unpause it early.
 - `Esc` or `←` returns to the ranked process list.
 - `[s]ort` switches between total data and live bandwidth (`t` remains a
   compatibility shortcut).
