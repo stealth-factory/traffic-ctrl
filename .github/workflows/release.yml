@@ -18,24 +18,17 @@ jobs:
   release-please:
     name: Version and changelog
     runs-on: ubuntu-latest
-    env:
-      RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
     outputs:
       release-created: ${{ steps.release.outputs.release_created }}
       tag-name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
       release-sha: ${{ steps.release.outputs.sha }}
     steps:
-      - name: Report missing release token
-        if: env.RELEASE_PLEASE_TOKEN == ''
-        run: echo "::warning::RELEASE_PLEASE_TOKEN is required by the enterprise Actions policy; see docs/RELEASING.md"
-
       - name: Create or update the release PR
-        if: env.RELEASE_PLEASE_TOKEN != ''
         id: release
         uses: googleapis/release-please-action@v5
         with:
-          token: ${{ env.RELEASE_PLEASE_TOKEN }}
+          token: ${{ github.token }}
 
   build:
     name: Package (${{ matrix.arch }})

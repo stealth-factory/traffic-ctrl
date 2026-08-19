@@ -6,20 +6,12 @@ normal release flow.
 
 ## One-time repository setup
 
-The current enterprise policy forces the repository `GITHUB_TOKEN` to remain
-read-only by default and prevents it from creating pull requests. Release
-Please therefore requires a repository Actions secret named
-`RELEASE_PLEASE_TOKEN`.
-
-Use either a fine-grained personal access token from a dedicated automation
-account or a GitHub App installation token. Scope it to this repository with
-read/write access to **Contents**, **Pull requests**, and **Issues**, and no
-unrelated permissions. Add it under **Settings → Secrets and variables →
-Actions**.
-
-Until that secret exists, the Release workflow exits successfully with a clear
-warning and does not create a release PR. Do not store a broad personal token
-used for unrelated repositories in this secret.
+In **Settings → Actions → General → Workflow permissions**, keep the default
+workflow permission set to **Read repository contents and packages**, and
+enable **Allow GitHub Actions to create and approve pull requests**. The
+Release workflow requests only the write permissions its Release Please job
+needs and uses GitHub's short-lived built-in `GITHUB_TOKEN`; no personal access
+token or repository secret is required.
 
 ## Commit messages
 
