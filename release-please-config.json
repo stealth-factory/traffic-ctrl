@@ -7,6 +7,7 @@
     ".": {
       "component": "traffic-ctrl",
       "package-name": "traffic-ctrl",
+      "initial-version": "0.1.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         "Sources/TrafficCtrl/Version.swift"

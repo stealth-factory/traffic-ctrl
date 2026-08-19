@@ -37,8 +37,8 @@ that should appear in history without independently requesting a release.
    generates SHA-256 checksums and provenance attestations, and uploads them to
    the GitHub Release.
 
-The initial manifest version is `0.0.0`, so the first `feat:` commit produces
-`v0.1.0`.
+The first release is explicitly initialised as `v0.1.0`. After that, Release
+Please calculates each version from the manifest and Conventional Commits.
 
 ## Release assets
 
