@@ -1,0 +1,71 @@
+name: TrafficCtrlFilter
+options:
+  bundleIdPrefix: com.stealthfactory.trafficctrl
+  deploymentTarget:
+    macOS: "13.0"
+  xcodeVersion: "26.0"
+
+packages:
+  TrafficCtrlPackage:
+    path: ..
+
+targets:
+  TrafficCtrlFilterHost:
+    type: application
+    platform: macOS
+    sources:
+      - path: FilterHost
+        excludes:
+          - Info.plist
+          - FilterHost.entitlements
+    dependencies:
+      - package: TrafficCtrlPackage
+        product: TrafficCtrlFilterHostCore
+      - sdk: NetworkExtension.framework
+      - sdk: SystemExtensions.framework
+      - target: TrafficCtrlFilterExtension
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stealthfactory.trafficctrl.filter-host
+        PRODUCT_NAME: Traffic Ctrl Filter
+        MARKETING_VERSION: 0.0.0 # x-release-please-version
+        CURRENT_PROJECT_VERSION: 1
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: FilterHost/FilterHost.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: FilterHost/Info.plist
+
+  TrafficCtrlFilterExtension:
+    type: system-extension
+    platform: macOS
+    sources:
+      - path: FilterExtension
+        excludes:
+          - Info.plist
+          - FilterExtension.entitlements
+    dependencies:
+      - package: TrafficCtrlPackage
+        product: TrafficCtrlFilterProtocol
+      - sdk: NetworkExtension.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stealthfactory.trafficctrl.filter-extension
+        PRODUCT_NAME: Traffic Ctrl Filter Extension
+        MARKETING_VERSION: 0.0.0 # x-release-please-version
+        CURRENT_PROJECT_VERSION: 1
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: FilterExtension/FilterExtension.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: FilterExtension/Info.plist
+
+schemes:
+  TrafficCtrlFilterHost:
+    build:
+      targets:
+        TrafficCtrlFilterHost: all
+        TrafficCtrlFilterExtension: all
+    run:
+      config: Debug
+    archive:
+      config: Release

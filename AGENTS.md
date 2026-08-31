@@ -5,13 +5,15 @@
 - Product name: **Traffic Ctrl**.
 - Canonical executable: `traffic-ctrl`.
 - Short executable alias: `trctrl`.
+- Canonical planning and issue tracker: [Traffic Ctrl on Linear](https://linear.app/stealth-company/project/traffic-ctrl-d494278d9328/overview).
 - Keep this naming consistent in user-facing text, package metadata,
   executable names, source paths, and documentation.
 
 ## Scope and architecture
 
-- This package currently targets macOS 13 or later.
-- `/usr/bin/nettop` is the traffic source. Its initial lifetime-counter sample
+- The Rust client targets macOS and Linux; the Swift integration targets macOS
+  13 or later.
+- `/usr/bin/nettop` is the macOS traffic source. Its initial lifetime-counter sample
   must be discarded; later delta samples are accumulated from tool launch.
 - Public-Internet mode counts only globally routable remote endpoints.
 - Network sampling, reverse DNS, process inspection, and terminal output must
@@ -34,10 +36,29 @@
 - `p` requires confirmation before pausing the selected process in either
   view; `u` resumes it. Pause notices must identify the process by name and PID
   and make clear that only that process is affected.
+- `b` controls public-Internet block/unblock for the selected process. Blocking
+  requires confirmation; unblocking is immediate. Never display a blocked
+  state unless the signed filter service confirms it, and render the control as
+  unavailable when that service is missing or disabled.
 - The footer must remain visible and describe the controls available in the
   current view.
 
 ## Building and verification
+
+The cross-platform Rust client lives under `rust/`. Keep the Swift client
+available while migration validation continues. Build and test the portable
+core and client with:
+
+```sh
+cargo fmt --all -- --check
+cargo test --workspace
+cargo build --release --workspace
+```
+
+The Rust executables are `target/release/traffic-ctrl` and
+`target/release/trctrl`. On Linux the
+interim `ss` collector is TCP-only; do not describe it as full eBPF accounting
+or enforcement.
 
 Build both executables with:
 

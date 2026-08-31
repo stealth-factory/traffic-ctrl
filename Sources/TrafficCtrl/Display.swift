@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import TrafficCtrlFilterProtocol
 
 private final class FrameWriter: @unchecked Sendable {
     private let condition = NSCondition()
@@ -79,6 +80,8 @@ struct Display {
         sort: SortMode,
         selected: ProcessID?,
         selectedIsPaused: Bool,
+        selectedIsNetworkBlocked: Bool,
+        filterState: FilterServiceState,
         notice: String?
     ) {
         let rows = plain ? nil : terminalRows()
@@ -117,10 +120,19 @@ struct Display {
             lines.append(truncate(notice, width: width))
         }
         let processControl = selectedIsPaused ? "[u]npause" : "[p]ause"
+        let networkControl = filterControl(
+            state: filterState,
+            blocked: selectedIsNetworkBlocked,
+            compact: width < 96
+        )
         finish(
             &lines,
             rows: rows,
-            footer: listFooter(processControl: processControl, width: width)
+            footer: listFooter(
+                processControl: processControl,
+                networkControl: networkControl,
+                width: width
+            )
         )
     }
 
@@ -138,6 +150,8 @@ struct Display {
         elapsed: TimeInterval,
         selectedFileIndex: Int,
         pausedSecondsRemaining: Int?,
+        networkBlocked: Bool,
+        filterState: FilterServiceState,
         notice: String?
     ) {
         let rows = plain ? nil : terminalRows()
@@ -151,9 +165,14 @@ struct Display {
             ""
         ]
 
-        if let pausedSecondsRemaining {
-            lines.insert("STATUS: PAUSED — all activity stopped (auto-unpause in \(pausedSecondsRemaining)s)", at: 2)
+        var statusLines: [String] = []
+        if networkBlocked {
+            statusLines.append("NETWORK: BLOCKED — public-Internet flows denied; process still running")
         }
+        if let pausedSecondsRemaining {
+            statusLines.append("STATUS: PAUSED — all activity stopped (auto-unpause in \(pausedSecondsRemaining)s)")
+        }
+        lines.insert(contentsOf: statusLines, at: 2)
 
         lines.append(contentsOf: chartHeader(history, sampleInterval: sampleInterval, title: item.id.name))
         lines.append(contentsOf: chart)
@@ -226,10 +245,20 @@ struct Display {
         }
 
         let processControl = pausedSecondsRemaining == nil ? "[p]ause" : "[u]npause"
+        let networkControl = filterControl(
+            state: filterState,
+            blocked: networkBlocked,
+            compact: width < 108
+        )
         finish(
             &lines,
             rows: rows,
-            footer: detailFooter(processControl: processControl, focus: detailFocus, width: width)
+            footer: detailFooter(
+                processControl: processControl,
+                networkControl: networkControl,
+                focus: detailFocus,
+                width: width
+            )
         )
     }
 
@@ -550,24 +579,45 @@ struct Display {
         }.joined(separator: " ")
     }
 
-    private func listFooter(processControl: String, width: Int) -> String {
-        if width >= 72 {
-            return "[↑/↓] select  [enter/→] details  \(processControl)  [s]ort  [r]eset  [q]uit"
+    private func listFooter(processControl: String, networkControl: String, width: Int) -> String {
+        if width >= 96 {
+            return "[↑/↓] select  [enter/→] details  \(networkControl)  \(processControl)  [s]ort  [r]eset  [q]uit"
         }
-        return "[j/k] select  [enter/→] details  \(processControl)  [r]eset  [q]uit"
+        if width >= 72 {
+            return "[↑/↓] select  [enter/→] details  \(networkControl)  \(processControl)  [r]eset  [q]uit"
+        }
+        return "[j/k] select  \(networkControl)  [r]eset  [q]uit"
     }
 
-    private func detailFooter(processControl: String, focus: DetailFocus, width: Int) -> String {
-        if width >= 88 {
+    private func detailFooter(
+        processControl: String,
+        networkControl: String,
+        focus: DetailFocus,
+        width: Int
+    ) -> String {
+        if width >= 108 {
             let target: String
             switch focus {
             case .endpoints: target = "endpoints"
             case .connections: target = "connections"
             case .files: target = "files"
             }
-            return "[↑/↓] \(target)  [tab] section  [c]opy  \(processControl)  [esc/←] back  [s]ort [r]eset [q]uit"
+            return "[↑/↓] \(target)  [tab] section  [c]opy  \(networkControl)  \(processControl)  [esc/←] back  [s]ort [r]eset [q]uit"
         }
-        return "[j/k]  [tab] section  [c]opy  \(processControl)  [esc/←]back  [r]eset [q]uit"
+        if width >= 78 {
+            return "[j/k]  [tab] section  [c]opy  \(networkControl)  \(processControl)  [esc/←]back  [q]uit"
+        }
+        return "[j/k] [tab] [c]opy  \(networkControl)  [esc/←]back  [q]uit"
+    }
+
+    private func filterControl(
+        state: FilterServiceState,
+        blocked: Bool,
+        compact: Bool
+    ) -> String {
+        guard state == .ready else { return compact ? "[b]lock×" : "[b]lock unavailable" }
+        if compact { return blocked ? "[b]unblock" : "[b]lock" }
+        return blocked ? "[b]unblock network" : "[b]lock network"
     }
 
     private func pad(_ value: String, to width: Int, rightAligned: Bool = false) -> String {

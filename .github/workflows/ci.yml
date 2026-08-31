@@ -35,6 +35,11 @@ jobs:
       - name: Build release executables
         run: swift build -c release
 
+      - name: Compile macOS network-filter components
+        run: |
+          swift build -c release --target TrafficCtrlFilterEngine
+          swift build -c release --target TrafficCtrlFilterHost
+
       - name: Verify commands
         shell: bash
         run: |
@@ -43,3 +48,30 @@ jobs:
           .build/release/trctrl --help >/dev/null
           .build/release/traffic-ctrl --version | grep -Eq '^traffic-ctrl [0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$'
           test "$(.build/release/traffic-ctrl --version)" = "$(.build/release/trctrl --version)"
+
+      - name: Test and build Rust client
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+          cargo build --release --workspace --locked
+          ./target/release/traffic-ctrl --help >/dev/null
+          ./target/release/trctrl --help >/dev/null
+          ./target/release/traffic-ctrl --version | grep -Eq '^traffic-ctrl [0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$'
+          test "$(./target/release/traffic-ctrl --version)" = "$(./target/release/trctrl --version)"
+
+  rust-linux:
+    name: Rust client (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Test and build
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+          cargo build --release --workspace --locked
+          ./target/release/traffic-ctrl --help >/dev/null
+          ./target/release/trctrl --help >/dev/null

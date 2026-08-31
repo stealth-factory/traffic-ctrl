@@ -4,6 +4,10 @@ Traffic Ctrl uses Semantic Versioning, Conventional Commits, Release Please,
 and GitHub Actions. Maintainers do not create release tags manually during the
 normal release flow.
 
+Release Please uses its Rust strategy and `cargo-workspace` plugin so the
+workspace manifest and generated lockfile stay on the same stamped version. It
+also stamps the legacy Swift version and macOS project metadata.
+
 ## One-time repository setup
 
 In **Settings → Actions → General → Workflow permissions**, keep the default
@@ -32,7 +36,7 @@ that should appear in history without independently requesting a release.
 3. Review and merge the release PR when the release should ship.
 4. Release Please creates the `vX.Y.Z` tag and GitHub Release.
 5. The same workflow checks out that exact release commit on ARM64 and Intel
-   macOS runners.
+   macOS runners and an x86-64 Linux runner.
 6. It verifies both command names, creates architecture-specific archives,
    generates SHA-256 checksums and provenance attestations, and uploads them to
    the GitHub Release.
@@ -45,12 +49,13 @@ Please calculates each version from the manifest and Conventional Commits.
 Each release currently contains:
 
 - `traffic-ctrl-vX.Y.Z-macos-arm64.tar.gz`;
-- `traffic-ctrl-vX.Y.Z-macos-x86_64.tar.gz`; and
+- `traffic-ctrl-vX.Y.Z-macos-x86_64.tar.gz`;
+- `traffic-ctrl-vX.Y.Z-linux-x86_64.tar.gz`; and
 - `SHA256SUMS`.
 
-Each archive contains `traffic-ctrl`, `trctrl`, and the README. Linux assets,
-macOS code signing, notarisation, and an installer will be added with their
-respective roadmap phases.
+Each archive contains `traffic-ctrl`, `trctrl`, and the README. macOS code
+signing, notarisation, additional Linux architectures, and installers will be
+added with their respective roadmap phases.
 
 ## Recovery
 

@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import TrafficCtrlFilterProtocol
 
 private nonisolated(unsafe) var terminationRequested: sig_atomic_t = 0
 
@@ -104,9 +105,10 @@ struct Options {
       UP     Current send rate
 
     Use Up/Down or j/k to select a process and Return or Right Arrow to inspect it. In the
-    detail view, Tab switches between endpoints, connections and open files, and p/u
-    pauses or resumes the selected process. Press Left Arrow or Esc to return, s to change sorting,
-    r to reset statistics, or q to quit.
+    detail view, Tab switches between endpoints, connections and open files. Press b to
+    block or unblock the selected process's public-Internet traffic when the signed filter
+    service is installed; p/u pauses or resumes the selected process itself. Press Left
+    Arrow or Esc to return, s to change sorting, r to reset statistics, or q to quit.
     """
 }
 
@@ -130,6 +132,7 @@ private enum InputAction {
     case focusEndpoints
     case focusFiles
     case copy
+    case toggleNetworkBlock
     case pause
     case unpause
     case reset
@@ -168,6 +171,7 @@ private func parseInput(_ bytes: inout [UInt8], flushStandaloneEscape: Bool) -> 
             case "e", "E": actions.append(.focusEndpoints)
             case "f", "F": actions.append(.focusFiles)
             case "c", "C": actions.append(.copy)
+            case "b", "B": actions.append(.toggleNetworkBlock)
             case "p", "P": actions.append(.pause)
             case "u", "U": actions.append(.unpause)
             case "r", "R": actions.append(.reset)
@@ -192,6 +196,7 @@ do {
     let collector = try TrafficCollector(interval: options.interval, publicOnly: options.publicOnly)
     let processInspector = AsyncProcessInspector()
     let hostnameResolver = HostnameResolver()
+    let networkFilter = AsyncNetworkFilterController()
     let display = Display(
         limit: options.limit,
         plain: options.plain || isatty(STDOUT_FILENO) == 0,
@@ -210,6 +215,7 @@ do {
     var detailFiles: [OpenFile] = []
     var detailNotice: String?
     var pendingPause: (id: ProcessID, expires: Date)?
+    var pendingNetworkBlock: (id: ProcessID, expires: Date)?
     var pausedProcesses: [ProcessID: Date] = [:]
     var pendingInput: [UInt8] = []
     var details = ProcessDetails(
@@ -218,11 +224,14 @@ do {
     var detailsRevision = -1
     var hostnameRevision = -1
     var lastPauseSecondsRemaining: Int?
+    var filterSnapshot = networkFilter.snapshot()
+    var filterRevision = filterSnapshot.revision
     var needsRender = true
     var inputEnabled = true
     let terminalInput = TerminalInput()
 
     collector.start()
+    networkFilter.refresh(now: Date(), force: true)
     signal(SIGINT) { _ in terminationRequested = 1 }
     signal(SIGTERM) { _ in terminationRequested = 1 }
     signal(SIGHUP) { _ in terminationRequested = 1 }
@@ -261,6 +270,17 @@ do {
         }
 
         let now = Date()
+        networkFilter.refresh(now: now)
+        let latestFilterSnapshot = networkFilter.snapshot()
+        if latestFilterSnapshot.revision != filterRevision {
+            filterSnapshot = latestFilterSnapshot
+            filterRevision = latestFilterSnapshot.revision
+            if let message = latestFilterSnapshot.message,
+               latestFilterSnapshot.state == .ready {
+                detailNotice = message
+            }
+            needsRender = true
+        }
         let collected = collector.drain()
         if let failure = collected.failure {
             throw CLIError.runtime("Traffic collector stopped: \(failure)")
@@ -289,6 +309,14 @@ do {
             if detailID == pauseConfirmation.id
                 || (detailID == nil && selectedID == pauseConfirmation.id) {
                 detailNotice = "Pause cancelled for \(pauseConfirmation.id.name) (PID \(pauseConfirmation.id.pid)): confirmation expired"
+            }
+            needsRender = true
+        }
+        if let blockConfirmation = pendingNetworkBlock, now >= blockConfirmation.expires {
+            pendingNetworkBlock = nil
+            if detailID == blockConfirmation.id
+                || (detailID == nil && selectedID == blockConfirmation.id) {
+                detailNotice = "Network block cancelled for \(blockConfirmation.id.name) (PID \(blockConfirmation.id.pid)): confirmation expired"
             }
             needsRender = true
         }
@@ -417,6 +445,7 @@ do {
                     }
                     pausedProcesses.removeAll()
                     pendingPause = nil
+                    pendingNetworkBlock = nil
                     monitor.reset()
                     statisticsStarted = now
                     selectedID = nil
@@ -448,6 +477,34 @@ do {
                     detailNotice = ProcessInspector.copyToClipboard(copyValue)
                         ? "Copied: \(copyValue)"
                         : "Could not copy the selected item"
+                case .toggleNetworkBlock:
+                    guard let id = detailID ?? selectedID else { continue }
+                    guard filterSnapshot.state == .ready else {
+                        pendingNetworkBlock = nil
+                        detailNotice = filterSnapshot.message
+                            ?? "Network block unavailable: install and enable the Traffic Ctrl filter service"
+                        continue
+                    }
+                    if filterSnapshot.isBlocked(id) {
+                        pendingNetworkBlock = nil
+                        if let error = networkFilter.setBlocked(false, process: id) {
+                            detailNotice = error
+                        } else {
+                            detailNotice = "Unblocking public-Internet traffic for \(id.name) (PID \(id.pid))…"
+                        }
+                    } else if pendingNetworkBlock?.id == id,
+                              let expiry = pendingNetworkBlock?.expires,
+                              now < expiry {
+                        pendingNetworkBlock = nil
+                        if let error = networkFilter.setBlocked(true, process: id) {
+                            detailNotice = error
+                        } else {
+                            detailNotice = "Blocking public-Internet traffic for \(id.name) (PID \(id.pid))…"
+                        }
+                    } else {
+                        pendingNetworkBlock = (id, now.addingTimeInterval(4))
+                        detailNotice = "Block public-Internet traffic for \(id.name) (PID \(id.pid))? [b] again within 4s. The process will keep running."
+                    }
                 case .pause:
                     guard let id = detailID ?? selectedID else { continue }
                     if pausedProcesses[id] != nil {
@@ -553,6 +610,8 @@ do {
                     elapsed: now.timeIntervalSince(statisticsStarted),
                     selectedFileIndex: selectedFileIndex,
                     pausedSecondsRemaining: pauseSecondsRemaining,
+                    networkBlocked: filterSnapshot.isBlocked(detailID),
+                    filterState: filterSnapshot.state,
                     notice: detailNotice
                 )
             }
@@ -568,6 +627,8 @@ do {
                     sort: sort,
                     selected: selectedID,
                     selectedIsPaused: selectedID.map { pausedProcesses[$0] != nil } ?? false,
+                    selectedIsNetworkBlocked: selectedID.map { filterSnapshot.isBlocked($0) } ?? false,
+                    filterState: filterSnapshot.state,
                     notice: detailNotice
                 )
             }

@@ -34,6 +34,12 @@ IPC to continue.
 
 ## Phase 1: define the backend contract
 
+Status: **in progress**. Protocol version 1 now covers status, temporary
+process-lifetime block/unblock requests, blocked state, and structured errors
+over a same-user local socket. Process identities include PID, executable path,
+and process start time to prevent PID-reuse mistakes. Streaming traffic and
+portable discovery messages remain to be specified.
+
 Before backend work begins, establish the release foundation described in the
 [release guide](RELEASING.md): cross-architecture CI, Semantic Versioning,
 generated changelogs, checksummed GitHub Release assets, and reproducible
@@ -50,6 +56,14 @@ version metadata.
   Rust clients can use it during migration.
 
 ## Phase 2: prove macOS network enforcement in Swift
+
+Status: **implementation started**. The repository now contains a compiling
+`NEFilterDataProvider`, signed-host core, system-extension host source,
+entitlements, and XcodeGen specification. The CLI exposes confirmed `[b]lock`
+and immediate `[b]unblock` controls, while showing an unavailable state unless
+the host confirms enforcement. Signed installation and live validation are
+blocked on the local Xcode licence and Apple Developer signing setup described
+in [`macOS/README.md`](../macOS/README.md).
 
 Build a focused vertical slice before porting the product core:
 
@@ -79,18 +93,29 @@ interface.
 
 ## Phase 3: move the portable core and TUI to Rust
 
-- Rebuild the terminal UI, charts, sorting, navigation, history, and rules in
-  Rust.
-- Preserve the `traffic-ctrl` command and `trctrl` alias.
-- Maintain the current keyboard controls and responsive layout.
-- Replace direct Swift collector access with the established IPC client.
+Status: **TUI feature parity reached; migration validation in progress**. A Cargo workspace contains a portable
+process/endpoint model, delta accounting, rate history, public-address
+classification, collector contract, and the `traffic-ctrl`/`trctrl` client. It
+uses `nettop` on macOS and an interim attributed-TCP `ss` collector on Linux.
+Charts, detail navigation, endpoint histories, hostname resolution, process
+inspection, copy, pause/unpause and macOS filter IPC are implemented in Rust.
+
+- Validate the Rust and Swift clients against shared recorded fixtures.
+- Exercise the Rust IPC client against a signed macOS filter installation.
 - Run the Swift and Rust clients against the same fixtures during the
   transition to prevent behavioural drift.
-- Retire the Swift TUI only after the Rust client reaches feature parity.
+- Retire the Swift TUI after cross-platform validation and the release
+  transition are complete.
 
 The Swift Network Extension and its service remain the permanent macOS backend.
 
 ## Phase 4: add the Linux backend
+
+Status: **collector preview started**. Linux builds can run the shared core and
+TUI against attributed TCP lifetime counters exposed by `ss`, converted to
+post-launch interval deltas. This preview deliberately excludes UDP and does
+not enforce rules; it is a bridge for TUI development, not a replacement for
+the eBPF backend below.
 
 - Implement per-process/cgroup traffic accounting with eBPF ingress and egress
   hooks.

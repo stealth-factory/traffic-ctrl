@@ -1,8 +1,14 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "simple",
+  "release-type": "rust",
   "include-v-in-tag": true,
   "include-component-in-tag": false,
+  "plugins": [
+    {
+      "type": "cargo-workspace",
+      "updateAllPackages": true
+    }
+  ],
   "packages": {
     ".": {
       "component": "traffic-ctrl",
@@ -10,7 +16,11 @@
       "initial-version": "0.1.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        "Sources/TrafficCtrl/Version.swift"
+        "Sources/TrafficCtrl/Version.swift",
+        {
+          "type": "generic",
+          "path": "macOS/project.yml"
+        }
       ]
     }
   }

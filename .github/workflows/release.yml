@@ -42,8 +42,13 @@ jobs:
         include:
           - runner: macos-15
             arch: arm64
+            platform: macos
           - runner: macos-15-intel
             arch: x86_64
+            platform: macos
+          - runner: ubuntu-latest
+            arch: x86_64
+            platform: linux
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out released revision
@@ -52,7 +57,7 @@ jobs:
           ref: ${{ needs.release-please.outputs.release-sha }}
 
       - name: Build release executables
-        run: swift build -c release
+        run: cargo build --release --workspace --locked
 
       - name: Verify commands and version
         shell: bash
@@ -60,28 +65,33 @@ jobs:
           RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
         run: |
           set -euo pipefail
-          .build/release/traffic-ctrl --help >/dev/null
-          .build/release/trctrl --help >/dev/null
-          test "$(.build/release/traffic-ctrl --version)" = "traffic-ctrl ${RELEASE_VERSION}"
-          test "$(.build/release/trctrl --version)" = "traffic-ctrl ${RELEASE_VERSION}"
+          ./target/release/traffic-ctrl --help >/dev/null
+          ./target/release/trctrl --help >/dev/null
+          test "$(./target/release/traffic-ctrl --version)" = "traffic-ctrl ${RELEASE_VERSION}"
+          test "$(./target/release/trctrl --version)" = "traffic-ctrl ${RELEASE_VERSION}"
 
       - name: Create release archive
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
           RELEASE_ARCH: ${{ matrix.arch }}
+          RELEASE_PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          package="traffic-ctrl-v${RELEASE_VERSION}-macos-${RELEASE_ARCH}"
+          package="traffic-ctrl-v${RELEASE_VERSION}-${RELEASE_PLATFORM}-${RELEASE_ARCH}"
           mkdir -p "dist/${package}"
-          cp .build/release/traffic-ctrl .build/release/trctrl README.md "dist/${package}/"
+          cp target/release/traffic-ctrl target/release/trctrl README.md "dist/${package}/"
           tar -C dist -czf "dist/${package}.tar.gz" "${package}"
-          (cd dist && shasum -a 256 "${package}.tar.gz" > "${package}.tar.gz.sha256")
+          if command -v shasum >/dev/null; then
+            (cd dist && shasum -a 256 "${package}.tar.gz" > "${package}.tar.gz.sha256")
+          else
+            (cd dist && sha256sum "${package}.tar.gz" > "${package}.tar.gz.sha256")
+          fi
 
       - name: Upload packaged executable
         uses: actions/upload-artifact@v4
         with:
-          name: traffic-ctrl-macos-${{ matrix.arch }}
+          name: traffic-ctrl-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             dist/*.tar.gz
             dist/*.sha256
@@ -101,7 +111,7 @@ jobs:
       - name: Download packaged executables
         uses: actions/download-artifact@v4
         with:
-          pattern: traffic-ctrl-macos-*
+          pattern: traffic-ctrl-*
           path: dist
           merge-multiple: true
 

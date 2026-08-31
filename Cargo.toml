@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "rust/traffic-ctrl-core",
+    "rust/traffic-ctrl",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.0" # x-release-please-version
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/stealth-factory/traffic-ctrl"
+rust-version = "1.85"
+
+[workspace.dependencies]
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
