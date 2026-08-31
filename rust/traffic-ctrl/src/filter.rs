@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use traffic_ctrl_core::ProcessId;
+#[cfg(target_os = "macos")]
 use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
@@ -132,6 +133,7 @@ enum FilterAction {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(target_os = "macos")]
 struct FilterRequest {
     protocol_version: u32,
     request_id: Uuid,
@@ -141,6 +143,7 @@ struct FilterRequest {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(target_os = "macos")]
 struct FilterProcessIdentity {
     pid: u32,
     name: String,
@@ -150,6 +153,7 @@ struct FilterProcessIdentity {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(target_os = "macos")]
 struct FilterResponse {
     protocol_version: u32,
     request_id: Uuid,
