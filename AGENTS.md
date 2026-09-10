@@ -43,6 +43,12 @@
 - The footer must remain visible and describe the controls available in the
   current view.
 
+## Worktrees
+
+- Create all auxiliary Git worktrees inside
+  `<project-root>/.claude/worktrees/<branch-name>`.
+- Do not create worktrees as siblings of the project directory.
+
 ## Building and verification
 
 The cross-platform Rust client lives under `rust/`. Keep the Swift client

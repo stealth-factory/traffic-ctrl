@@ -1,6 +1,7 @@
 .build/
 /target/
 .swiftpm/
+.claude/worktrees/
 .DS_Store
 DerivedData/
 *.xcodeproj/xcuserdata/
