@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::io::Write;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::{self, Receiver, SyncSender};
@@ -6,6 +6,8 @@ use std::thread;
 
 use traffic_ctrl_core::ProcessId;
 
+#[cfg(target_os = "macos")]
+use std::collections::HashSet;
 #[cfg(target_os = "linux")]
 use std::{fs, path::PathBuf};
 
