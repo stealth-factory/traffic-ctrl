@@ -36,6 +36,11 @@ targets:
         CODE_SIGN_ENTITLEMENTS: FilterHost/FilterHost.entitlements
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: FilterHost/Info.plist
+      configs:
+        Debug:
+          NE_CONTENT_FILTER_PROVIDER: content-filter-provider
+        Release:
+          NE_CONTENT_FILTER_PROVIDER: content-filter-provider-systemextension
 
   TrafficCtrlFilterExtension:
     type: system-extension
@@ -49,6 +54,7 @@ targets:
       - package: TrafficCtrlPackage
         product: TrafficCtrlFilterProtocol
       - sdk: NetworkExtension.framework
+      - sdk: libbsm.tbd
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: co.stealth-factory.trafficctrl.filter-extension
@@ -60,6 +66,11 @@ targets:
         CODE_SIGN_ENTITLEMENTS: FilterExtension/FilterExtension.entitlements
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: FilterExtension/Info.plist
+      configs:
+        Debug:
+          NE_CONTENT_FILTER_PROVIDER: content-filter-provider
+        Release:
+          NE_CONTENT_FILTER_PROVIDER: content-filter-provider-systemextension
 
 schemes:
   TrafficCtrlFilterHost:
