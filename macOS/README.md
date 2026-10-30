@@ -33,7 +33,7 @@ permits new connections; a socket already dropped by macOS must reconnect.
 3. Register the host and extension bundle identifiers used in `project.yml`.
 4. Enable the Network Extension and App Groups capabilities for both IDs, and
    the System Extension capability for the host.
-5. Create the App Group `group.com.stealthfactory.trafficctrl` and attach both
+5. Create the App Group `group.co.stealth-factory.trafficctrl` and attach both
    targets to it.
 6. Install XcodeGen, then run `xcodegen generate --spec macOS/project.yml`.
 7. Set the Development Team for both generated targets, build the

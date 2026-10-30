@@ -3,7 +3,7 @@ import AppKit
 @preconcurrency import SystemExtensions
 import TrafficCtrlFilterHostCore
 
-private let filterExtensionIdentifier = "com.stealthfactory.trafficctrl.filter-extension"
+private let filterExtensionIdentifier = "co.stealth-factory.trafficctrl.filter-extension"
 
 @MainActor
 final class FilterHostDelegate: NSObject, NSApplicationDelegate, @preconcurrency OSSystemExtensionRequestDelegate {

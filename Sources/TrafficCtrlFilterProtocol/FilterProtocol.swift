@@ -2,7 +2,7 @@ import Foundation
 
 public enum TrafficCtrlFilterProtocol {
     public static let version = 1
-    public static let appGroupIdentifier = "group.com.stealthfactory.trafficctrl"
+    public static let appGroupIdentifier = "group.co.stealth-factory.trafficctrl"
     public static let rulesFilename = "filter-rules-v1.json"
 
     public static var socketPath: String {

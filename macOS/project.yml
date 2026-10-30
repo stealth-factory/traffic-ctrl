@@ -1,6 +1,6 @@
 name: TrafficCtrlFilter
 options:
-  bundleIdPrefix: com.stealthfactory.trafficctrl
+  bundleIdPrefix: co.stealth-factory.trafficctrl
   deploymentTarget:
     macOS: "13.0"
   xcodeVersion: "26.0"
@@ -27,11 +27,12 @@ targets:
         embed: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.stealthfactory.trafficctrl.filter-host
+        PRODUCT_BUNDLE_IDENTIFIER: co.stealth-factory.trafficctrl.filter-host
         PRODUCT_NAME: Traffic Ctrl Filter
         MARKETING_VERSION: 0.0.0 # x-release-please-version
         CURRENT_PROJECT_VERSION: 1
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: G2STPJ2K3D
         CODE_SIGN_ENTITLEMENTS: FilterHost/FilterHost.entitlements
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: FilterHost/Info.plist
@@ -50,11 +51,12 @@ targets:
       - sdk: NetworkExtension.framework
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.stealthfactory.trafficctrl.filter-extension
+        PRODUCT_BUNDLE_IDENTIFIER: co.stealth-factory.trafficctrl.filter-extension
         PRODUCT_NAME: Traffic Ctrl Filter Extension
         MARKETING_VERSION: 0.0.0 # x-release-please-version
         CURRENT_PROJECT_VERSION: 1
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: G2STPJ2K3D
         CODE_SIGN_ENTITLEMENTS: FilterExtension/FilterExtension.entitlements
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: FilterExtension/Info.plist
