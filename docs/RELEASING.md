@@ -35,8 +35,10 @@ that should appear in history without independently requesting a release.
    version and generated `CHANGELOG.md` entries.
 3. Review and merge the release PR when the release should ship.
 4. Release Please creates the `vX.Y.Z` tag and GitHub Release.
-5. The same workflow checks out that exact release commit on ARM64 and Intel
-   macOS runners and an x86-64 Linux runner.
+5. The same workflow checks out that exact release commit, builds the ARM64
+   and cross-compiled Intel macOS archives on the org's self-hosted Apple
+   silicon Macs, and builds the x86-64 Linux archive on a GitHub-hosted Ubuntu
+   runner. No release job uses a GitHub-hosted macOS runner.
 6. It verifies both command names, creates architecture-specific archives,
    generates SHA-256 checksums and provenance attestations, and uploads them to
    the GitHub Release.

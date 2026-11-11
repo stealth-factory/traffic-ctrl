@@ -40,35 +40,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15
+          # macOS archives build on the org's self-hosted Apple silicon Macs,
+          # never on GitHub-hosted macOS runners. Intel is cross-compiled.
+          - platform: macos
             arch: arm64
-            platform: macos
-          - runner: macos-15-intel
+            rust-target: aarch64-apple-darwin
+          - platform: macos
             arch: x86_64
-            platform: macos
-          - runner: ubuntu-latest
+            rust-target: x86_64-apple-darwin
+          - platform: linux
             arch: x86_64
-            platform: linux
-    runs-on: ${{ matrix.runner }}
+            rust-target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.platform == 'linux' && 'ubuntu-latest' || fromJSON(vars.MACOS_RUNS_ON || '["self-hosted","macOS","ARM64"]') }}
     steps:
       - name: Check out released revision
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.release-please.outputs.release-sha }}
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
       - name: Build release executables
-        run: cargo build --release --workspace --locked
+        run: cargo build --release --workspace --locked --target ${{ matrix.rust-target }}
 
       - name: Verify commands and version
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
-        run: |
-          set -euo pipefail
-          ./target/release/traffic-ctrl --help >/dev/null
-          ./target/release/trctrl --help >/dev/null
-          test "$(./target/release/traffic-ctrl --version)" = "traffic-ctrl ${RELEASE_VERSION}"
-          test "$(./target/release/trctrl --version)" = "traffic-ctrl ${RELEASE_VERSION}"
+        run: .github/scripts/verify-commands.sh "target/${{ matrix.rust-target }}/release" ${{ matrix.arch }} "${{ needs.release-please.outputs.version }}"
 
       - name: Create release archive
         shell: bash
@@ -76,11 +75,13 @@ jobs:
           RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
           RELEASE_ARCH: ${{ matrix.arch }}
           RELEASE_PLATFORM: ${{ matrix.platform }}
+          BIN: target/${{ matrix.rust-target }}/release
         run: |
           set -euo pipefail
           package="traffic-ctrl-v${RELEASE_VERSION}-${RELEASE_PLATFORM}-${RELEASE_ARCH}"
+          rm -rf dist
           mkdir -p "dist/${package}"
-          cp target/release/traffic-ctrl target/release/trctrl README.md "dist/${package}/"
+          cp "$BIN/traffic-ctrl" "$BIN/trctrl" README.md "dist/${package}/"
           tar -C dist -czf "dist/${package}.tar.gz" "${package}"
           if command -v shasum >/dev/null; then
             (cd dist && shasum -a 256 "${package}.tar.gz" > "${package}.tar.gz.sha256")

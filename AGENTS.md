@@ -91,6 +91,18 @@ restart the preview in the right-hand Herdr pane. Verify that the pane's
 foreground process is the new `traffic-ctrl` binary and inspect the visible
 screen for the updated behaviour before reporting completion.
 
+## Mac first, CI last
+
+- Build and test Apple changes on a Mac before pushing: run the same commands
+  the CI job runs, for both `arm64` and `x86_64`. CI is the final check, not
+  where you iterate. See the `self-hosted-macos-runner` skill.
+- macOS CI and release jobs run only on the org's self-hosted Apple silicon
+  Macs, never on GitHub-hosted macOS runners. Intel builds are cross-compiled.
+  Fork PRs skip the macOS jobs. The `MACOS_RUNS_ON` repository variable
+  overrides the runner labels as JSON.
+- Keep machine names, IP addresses, and private-network details out of
+  committed files.
+
 ## Versions and releases
 
 - Use Conventional Commit subjects for changes intended to drive releases.
@@ -98,7 +110,8 @@ screen for the updated behaviour before reporting completion.
   tags, and updates to `Sources/TrafficCtrl/Version.swift`.
 - Do not edit generated version or changelog entries manually except when
   repairing release automation.
-- CI must build both ARM64 and Intel macOS executables. A release is complete
-  only after both archives and `SHA256SUMS` are attached to the GitHub Release.
+- CI must build both ARM64 and Intel macOS executables on self-hosted Macs. A
+  release is complete only after both archives and `SHA256SUMS` are attached to
+  the GitHub Release.
 - Follow `docs/RELEASING.md` for repository setup, release operation, and
   recovery.
