@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "skills": {
+    "self-hosted-macos-runner": {
+      "source": "stealth-factory/private-skills",
+      "sourceType": "github",
+      "skillPath": "skills/self-hosted-macos-runner/SKILL.md",
+      "computedHash": "22f0e7ed41c68e75ba0918399d41e689c4f26b6ad73d04a687b07b9fb966d8bf"
+    }
+  }
+}

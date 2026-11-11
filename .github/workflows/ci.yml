@@ -16,49 +16,56 @@ concurrency:
 jobs:
   build:
     name: Build (${{ matrix.arch }})
+    # macOS jobs run only on the org's self-hosted Macs, never on GitHub-hosted
+    # macOS runners. GitHub's runner access settings keep outside contributors
+    # off them; fork PRs also skip these jobs so untrusted code never reaches
+    # our hardware. MACOS_RUNS_ON overrides the runner labels as JSON.
+    if: github.event.pull_request.head.repo.fork != true
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15
-            arch: arm64
-          - runner: macos-15-intel
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
+          - arch: arm64
+            swift-arch: arm64
+            rust-target: aarch64-apple-darwin
+          # The self-hosted Macs are Apple silicon, so Intel is cross-compiled.
+          - arch: x86_64
+            swift-arch: x86_64
+            rust-target: x86_64-apple-darwin
+    runs-on: ${{ fromJSON(vars.MACOS_RUNS_ON || '["self-hosted","macOS","ARM64"]') }}
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+          components: clippy, rustfmt
 
       - name: Describe package
         run: swift package describe
 
       - name: Build release executables
-        run: swift build -c release
+        run: swift build -c release --arch ${{ matrix.swift-arch }}
 
       - name: Compile macOS network-filter components
         run: |
-          swift build -c release --target TrafficCtrlFilterEngine
-          swift build -c release --target TrafficCtrlFilterHost
+          swift build -c release --arch ${{ matrix.swift-arch }} --target TrafficCtrlFilterEngine
+          swift build -c release --arch ${{ matrix.swift-arch }} --target TrafficCtrlFilterHost
 
       - name: Verify commands
+        run: .github/scripts/verify-commands.sh "$(swift build -c release --arch ${{ matrix.swift-arch }} --show-bin-path)" ${{ matrix.arch }}
+
+      - name: Test and build Rust client
         shell: bash
         run: |
           set -euo pipefail
-          .build/release/traffic-ctrl --help >/dev/null
-          .build/release/trctrl --help >/dev/null
-          .build/release/traffic-ctrl --version | grep -Eq '^traffic-ctrl [0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$'
-          test "$(.build/release/traffic-ctrl --version)" = "$(.build/release/trctrl --version)"
-
-      - name: Test and build Rust client
-        run: |
           cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets -- -D warnings
-          cargo test --workspace
-          cargo build --release --workspace --locked
-          ./target/release/traffic-ctrl --help >/dev/null
-          ./target/release/trctrl --help >/dev/null
-          ./target/release/traffic-ctrl --version | grep -Eq '^traffic-ctrl [0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$'
-          test "$(./target/release/traffic-ctrl --version)" = "$(./target/release/trctrl --version)"
+          cargo clippy --workspace --all-targets --target ${{ matrix.rust-target }} -- -D warnings
+          cargo test --workspace --target ${{ matrix.rust-target }}
+          cargo build --release --workspace --locked --target ${{ matrix.rust-target }}
+          .github/scripts/verify-commands.sh "target/${{ matrix.rust-target }}/release" ${{ matrix.arch }}
 
   rust-linux:
     name: Rust client (Linux)
